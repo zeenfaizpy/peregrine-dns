@@ -20,7 +20,7 @@ func CallUDP(domain_name string, record_type uint16, class_type uint16) {
 	}
 
 	conn, err := net.DialUDP("udp", nil, udpAddr)
-	defer conn.Close()
+	// defer conn.Close()
 
 	if err != nil {
 		fmt.Println(err)
@@ -37,11 +37,20 @@ func CallUDP(domain_name string, record_type uint16, class_type uint16) {
 	}
 
 	// Read from the connection untill a new line is send
-	buf := make([]byte, 1024)
+	buf := make([]byte, 100)
 	n, err := bufio.NewReader(conn).Read(buf)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(n, buf)
+
+	var header = DNSHeader{}
+	header = header.decode(buf[:12])
+	fmt.Printf("%+v\n", header)
+
+	var dname = DNSDomainName{}
+	fmt.Println(buf[13:])
+	dname = dname.decode(buf[12:])
+	fmt.Printf("%+v\n", dname)
 }

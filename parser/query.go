@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math/rand/v2"
 	"strings"
 )
 
 type DNSHeader struct {
-	id              uint16
-	flags           uint16
-	num_questions   uint16
-	num_answers     uint16
-	num_authorities uint16
-	num_additionals uint16
+	Id             uint16
+	Flags          uint16
+	NumQuestions   uint16
+	NumAnswers     uint16
+	NumAuthorities uint16
+	NumAdditionals uint16
 }
 
 func (h DNSHeader) encode() []byte {
@@ -27,22 +28,64 @@ func (h DNSHeader) encode() []byte {
 	return buf.Bytes()
 }
 
+func (h DNSHeader) decode(dataIn []byte) DNSHeader {
+	buf := new(bytes.Buffer)
+	buf.Write(dataIn)
+
+	err := binary.Read(buf, binary.BigEndian, &h)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return h
+}
+
+type DNSDomainName struct {
+	name string
+}
+
+func (n DNSDomainName) encode() []byte {
+	buf := new(bytes.Buffer)
+	// Encode domain name
+	for _, part := range strings.Split(n.name, ".") {
+		length := len(part)
+		buf.WriteByte(byte(length))
+		buf.Write([]byte(part))
+	}
+	buf.WriteByte(byte(0))
+	return buf.Bytes()
+}
+
+func (n DNSDomainName) decode(dataIn []byte) DNSDomainName {
+	buf := new(bytes.Buffer)
+	buf.Write(dataIn)
+
+	var name_parts []string
+
+	for {
+		var namePartLen uint8
+		err := binary.Read(buf, binary.BigEndian, &namePartLen)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		if int(namePartLen) == 0 {
+			break
+		} else {
+			var tempBuf []byte = buf.Next(int(namePartLen))
+			name_parts = append(name_parts, string(tempBuf[:]))
+		}
+	}
+	return DNSDomainName{name: strings.Join(name_parts, ".")}
+
+}
+
 type DNSQuestion struct {
-	name   string
 	type_  uint16
 	class_ uint16
 }
 
 func (q DNSQuestion) encode() []byte {
 	buf := new(bytes.Buffer)
-
-	// Encode domain name
-	for _, part := range strings.Split(q.name, ".") {
-		length := len(part)
-		buf.WriteByte(byte(length))
-		buf.Write([]byte(part))
-	}
-	buf.WriteByte(byte(0))
 
 	// Encode type and class
 	binary.Write(buf, binary.BigEndian, q.type_)
@@ -52,23 +95,37 @@ func (q DNSQuestion) encode() []byte {
 	return buf.Bytes()
 }
 
+func (q DNSQuestion) decode(dataIn []byte) DNSQuestion {
+	buf := new(bytes.Buffer)
+	buf.Write(dataIn)
+
+	err := binary.Read(buf, binary.BigEndian, &q)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return q
+}
+
 func build_query(domain_name string, record_type uint16, class_type uint16) []byte {
 	header := DNSHeader{
-		id:              0x1314, // todo: use random value
-		flags:           1 << 8, // todo: read RFC
-		num_questions:   1,
-		num_answers:     0,
-		num_authorities: 0,
-		num_additionals: 0,
+		Id:             uint16(rand.IntN(65535)), // todo: use random value
+		Flags:          1 << 8,                   // todo: read RFC
+		NumQuestions:   1,
+		NumAnswers:     0,
+		NumAuthorities: 0,
+		NumAdditionals: 0,
+	}
+	dns_dname := DNSDomainName{
+		name: domain_name,
 	}
 	question := DNSQuestion{
-		name: domain_name,
 		type_:  record_type,
 		class_: class_type,
 	}
 
 	buf := new(bytes.Buffer)
 	buf.Write(header.encode())
+	buf.Write(dns_dname.encode())
 	buf.Write(question.encode())
 
 	fmt.Printf("final = % x\n", buf)
