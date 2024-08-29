@@ -20,6 +20,7 @@ func CallUDP(domain_name string, record_type uint16, class_type uint16) {
 	}
 
 	conn, err := net.DialUDP("udp", nil, udpAddr)
+	defer conn.Close()
 
 	if err != nil {
 		fmt.Println(err)

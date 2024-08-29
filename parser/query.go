@@ -16,7 +16,7 @@ type DNSHeader struct {
 	num_additionals uint16
 }
 
-func (h DNSHeader) to_bytes() []byte {
+func (h DNSHeader) encode() []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.BigEndian, h)
 	if err != nil {
@@ -28,64 +28,48 @@ func (h DNSHeader) to_bytes() []byte {
 }
 
 type DNSQuestion struct {
+	name   string
 	type_  uint16
 	class_ uint16
 }
 
-func (q DNSQuestion) to_bytes() []byte {
+func (q DNSQuestion) encode() []byte {
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.BigEndian, q)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// return fmt.Sprintf("% x", buf.Bytes())
-	fmt.Printf("question2 = % x\n", buf)
-	return buf.Bytes()
-}
 
-// func (q DNSQuestion) to_gob_bytes() []byte {
-// 	buf := new(bytes.Buffer)
-
-// 	enc := gob.NewEncoder(buf)
-// 	if err := enc.Encode(q); err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	// return fmt.Sprintf("% x", buf.Bytes())
-// 	fmt.Printf("question = % x\n", buf)
-// 	return buf.Bytes()
-// }
-
-func encode_domain_name(name string) []byte {
-	buf := new(bytes.Buffer)
-	for _, part := range strings.Split(name, ".") {
+	// Encode domain name
+	for _, part := range strings.Split(q.name, ".") {
 		length := len(part)
 		buf.WriteByte(byte(length))
 		buf.Write([]byte(part))
 	}
 	buf.WriteByte(byte(0))
-	fmt.Printf("question1 = % x\n", buf)
+
+	// Encode type and class
+	binary.Write(buf, binary.BigEndian, q.type_)
+	binary.Write(buf, binary.BigEndian, q.class_)
+
+	fmt.Printf("question = % x\n", buf)
 	return buf.Bytes()
 }
 
 func build_query(domain_name string, record_type uint16, class_type uint16) []byte {
 	header := DNSHeader{
-		id:              0x1314,
-		flags:           1 << 8,
+		id:              0x1314, // todo: use random value
+		flags:           1 << 8, // todo: read RFC
 		num_questions:   1,
 		num_answers:     0,
 		num_authorities: 0,
 		num_additionals: 0,
 	}
 	question := DNSQuestion{
+		name: domain_name,
 		type_:  record_type,
 		class_: class_type,
 	}
 
 	buf := new(bytes.Buffer)
-	buf.Write(header.to_bytes())
-	name := encode_domain_name(domain_name)
-	buf.Write(name)
-	buf.Write(question.to_bytes())
+	buf.Write(header.encode())
+	buf.Write(question.encode())
 
 	fmt.Printf("final = % x\n", buf)
 

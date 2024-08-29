@@ -9,5 +9,4 @@ func main() {
 	record_type := parser.TypeA
 	class_type := parser.ClassIn
 	parser.CallUDP(domain_name, record_type, class_type)
-
 }
