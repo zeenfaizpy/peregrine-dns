@@ -50,7 +50,10 @@ func CallUDP(domain_name string, record_type uint16, class_type uint16) {
 	fmt.Printf("%+v\n", header)
 
 	var dname = DNSDomainName{}
-	fmt.Println(buf[13:])
 	dname = dname.decode(buf[12:])
 	fmt.Printf("%+v\n", dname)
+
+	var question = DNSQuestion{}
+	question = question.decode(buf[12:])
+	fmt.Printf("%+v\n", question)
 }

@@ -55,11 +55,12 @@ func (n DNSDomainName) encode() []byte {
 	return buf.Bytes()
 }
 
-func (n DNSDomainName) decode(dataIn []byte) DNSDomainName {
+func (n DNSDomainName) decode(dataIn []byte) int, DNSDomainName {
 	buf := new(bytes.Buffer)
 	buf.Write(dataIn)
 
 	var name_parts []string
+	var offset int
 
 	for {
 		var namePartLen uint8
@@ -67,15 +68,18 @@ func (n DNSDomainName) decode(dataIn []byte) DNSDomainName {
 		if err != nil {
 			fmt.Println(err)
 		}
+		offset += 1
 
 		if int(namePartLen) == 0 {
 			break
 		} else {
-			var tempBuf []byte = buf.Next(int(namePartLen))
+			length := int(namePartLen)
+			var tempBuf []byte = buf.Next(length)
 			name_parts = append(name_parts, string(tempBuf[:]))
+			offset += length
 		}
 	}
-	return DNSDomainName{name: strings.Join(name_parts, ".")}
+	return offset, DNSDomainName{name: strings.Join(name_parts, ".")}
 
 }
 
